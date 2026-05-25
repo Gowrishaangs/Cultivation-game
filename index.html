@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta name="theme-color" content="#080610"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="仙途"/>
+  <meta name="description" content="A Chinese Xianxia immortal cultivation RPG — cultivate Qi, forge your Dao, transcend death."/>
+  <title>仙途 — Path to Immortality</title>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="apple-touch-icon" href="icons/icon-192.png"/>
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;background:#080610;color:#DDD0B0;overflow:hidden}
+    #root{height:100%;display:flex;flex-direction:column}
+</style>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Crimson+Text:ital,wght@0,400;1,400&display=swap" rel="stylesheet"/>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useRef, useCallback } = React;
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// DATA
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const STAGES = [
+  { name: "Mortal Body",                  qiReq: 0,       color: "#A08060", maxAge: 80,     desc: "Unawakened, blind to the Dao." },
+  { name: "Qi Condensation · Early",      qiReq: 100,     color: "#6DCFB8", maxAge: 200,    desc: "First wisps of Qi enter the body." },
+  { name: "Qi Condensation · Middle",     qiReq: 350,     color: "#6DCFB8", maxAge: 250,    desc: "Qi flows freely through the meridians." },
+  { name: "Qi Condensation · Late",       qiReq: 700,     color: "#6DCFB8", maxAge: 300,    desc: "Qi saturates every vein and bone." },
+  { name: "Foundation Building · Early",  qiReq: 1400,    color: "#5BAADF", maxAge: 500,    desc: "A spiritual foundation takes shape in the dantian." },
+  { name: "Foundation Building · Middle", qiReq: 3000,    color: "#5BAADF", maxAge: 600,    desc: "The foundation hardens and grows resilient." },
+  { name: "Foundation Building · Late",   qiReq: 6000,    color: "#5BAADF", maxAge: 700,    desc: "Foundation complete — the core stirs within." },
+  { name: "Core Formation · Early",       qiReq: 12000,   color: "#C8A0E0", maxAge: 1200,   desc: "A golden core crystallizes from condensed Qi." },
+  { name: "Core Formation · Middle",      qiReq: 25000,   color: "#C8A0E0", maxAge: 1500,   desc: "The golden core consolidates its power." },
+  { name: "Core Formation · Late",        qiReq: 50000,   color: "#C8A0E0", maxAge: 2000,   desc: "The golden core blazes with blinding radiance." },
+  { name: "Nascent Soul · Early",         qiReq: 100000,  color: "#F0D060", maxAge: 5000,   desc: "A nascent soul emerges — true cultivation begins." },
+  { name: "Nascent Soul · Middle",        qiReq: 200000,  color: "#F0D060", maxAge: 6000,   desc: "The nascent soul grows mighty and fearless." },
+  { name: "Nascent Soul · Late",          qiReq: 400000,  color: "#F0D060", maxAge: 8000,   desc: "The nascent soul stands at mortality's peak." },
+  { name: "Soul Transformation",          qiReq: 800000,  color: "#F08858", maxAge: 20000,  desc: "The soul transcends its mortal vessel entirely." },
+  { name: "Void Refinement",              qiReq: 1600000, color: "#D060A8", maxAge: 100000, desc: "The self merges with the boundless void." },
+  { name: "Mahayana",                     qiReq: 3200000, color: "#A880F0", maxAge: 500000, desc: "One breath from immortality — the final threshold." },
+  { name: "✦ True Immortal",              qiReq: 6400000, color: "#FFD700", maxAge: Infinity, desc: "Transcendence achieved. The heavens bow." },
+];
+
+const ROOTS = [
+  { name: "Heavenly Spiritual Root", short: "Heavenly", rarity: "LEGENDARY", mod: 3.5,  chance: 0.02, color: "#FFD700", desc: "Blessed by the Dao itself. One in ten thousand." },
+  { name: "Variant Spiritual Root",  short: "Variant",  rarity: "RARE",      mod: 2.2,  chance: 0.08, color: "#D060A8", desc: "A rare, unpredictable elemental gift from fate." },
+  { name: "Dual Spiritual Root",     short: "Dual",     rarity: "UNCOMMON",  mod: 1.5,  chance: 0.20, color: "#5BAADF", desc: "Affinity with two elements — a fortunate talent." },
+  { name: "Single Spiritual Root",   short: "Single",   rarity: "COMMON",    mod: 1.1,  chance: 0.35, color: "#6DCFB8", desc: "A pure, singular elemental affinity." },
+  { name: "Pseudo Spiritual Root",   short: "Pseudo",   rarity: "WEAK",      mod: 0.55, chance: 0.35, color: "#A08060", desc: "Faint, struggling affinity. Will must compensate." },
+];
+
+const ELEMENTS = ["🔥 Fire","💧 Water","🌿 Wood","⚔️ Metal","🌍 Earth","⚡ Lightning","🌌 Void","☀️ Light","🌑 Shadow","❄️ Ice"];
+
+const HERBS = [
+  { key: "spiritGrass", name: "Spirit Grass",      shortName: "Spirit Grass", color: "#6DCFB8", rarity: "Common",   icon: "🌿" },
+  { key: "moonFlower",  name: "Azure Moon Flower",  shortName: "Moon Flower",  color: "#5BAADF", rarity: "Uncommon", icon: "🌸" },
+  { key: "goldenLotus", name: "Golden Lotus",        shortName: "Gold Lotus",   color: "#F0D060", rarity: "Rare",     icon: "🏵" },
+];
+
+const RECIPES = [
+  {
+    key: "qi", name: "Qi Gathering Pill", short: "Qi Pill",
+    ingredients: { spiritGrass: 3 },
+    qiGain: 250, shopCost: 40, color: "#6DCFB8",
+    desc: "Boosts Qi in the dantian.",
+  },
+  {
+    key: "found", name: "Foundation Solidifying Pill", short: "Found. Pill",
+    ingredients: { moonFlower: 2, spiritGrass: 1 },
+    qiGain: 1800, shopCost: 300, color: "#5BAADF",
+    desc: "Stabilises and enlarges the spiritual foundation.",
+  },
+  {
+    key: "core", name: "Golden Core Elixir", short: "Core Elixir",
+    ingredients: { goldenLotus: 2, moonFlower: 1 },
+    qiGain: 14000, shopCost: 2000, color: "#F0D060",
+    desc: "Ignites the golden core with blazing spiritual fire.",
+  },
+];
+
+// Tiered enemies — scales with player stage
+const ENEMY_TIERS = [
+  [ // Tier 0 — stages 0-3 (Mortal / Qi Condensation)
+    { name: "Feral Spirit Wolf",      hpBase: 28,  atkBase: 5,  reward: { stones: 10, qi: 18  } },
+    { name: "Lost Soul Wisp",         hpBase: 20,  atkBase: 4,  reward: { stones: 8,  qi: 14  } },
+    { name: "Young Demonic Fox",      hpBase: 32,  atkBase: 6,  reward: { stones: 14, qi: 22  } },
+    { name: "Corrupted Earth Spirit", hpBase: 38,  atkBase: 7,  reward: { stones: 16, qi: 26  } },
+    { name: "Bog Wraith",             hpBase: 26,  atkBase: 5,  reward: { stones: 10, qi: 16  } },
+  ],
+  [ // Tier 1 — stages 4-6 (Foundation Building)
+    { name: "Rogue Cultivator",       hpBase: 55,  atkBase: 12, reward: { stones: 38, qi: 55  } },
+    { name: "Stone Sentinel Golem",   hpBase: 70,  atkBase: 10, reward: { stones: 42, qi: 60  } },
+    { name: "Blood Bat Swarm",        hpBase: 45,  atkBase: 15, reward: { stones: 34, qi: 50  } },
+    { name: "Iron Fang Tiger",        hpBase: 65,  atkBase: 13, reward: { stones: 40, qi: 58  } },
+    { name: "Jade Bone Skeleton",     hpBase: 58,  atkBase: 11, reward: { stones: 36, qi: 52  } },
+  ],
+  [ // Tier 2 — stages 7-9 (Core Formation)
+    { name: "Blood Demon Warrior",    hpBase: 80,  atkBase: 18, reward: { stones: 70, qi: 105 } },
+    { name: "Shadow Wraith Elder",    hpBase: 65,  atkBase: 22, reward: { stones: 75, qi: 115 } },
+    { name: "Jade Venom Serpent",     hpBase: 90,  atkBase: 16, reward: { stones: 65, qi: 98  } },
+    { name: "Flame Devouring Beetle", hpBase: 75,  atkBase: 20, reward: { stones: 72, qi: 108 } },
+    { name: "Corrupted Golden Ape",   hpBase: 95,  atkBase: 19, reward: { stones: 78, qi: 118 } },
+    { name: "Abyssal Water Drake",    hpBase: 85,  atkBase: 21, reward: { stones: 74, qi: 112 } },
+  ],
+  [ // Tier 3 — stages 10-12 (Nascent Soul)
+    { name: "Spectral Elder Ghost",   hpBase: 110, atkBase: 28, reward: { stones: 120, qi: 185 } },
+    { name: "Demonic Dragon Spawn",   hpBase: 130, atkBase: 32, reward: { stones: 140, qi: 210 } },
+    { name: "Thunder Hawk Sovereign", hpBase: 100, atkBase: 30, reward: { stones: 125, qi: 195 } },
+    { name: "Ancient Bone Puppet",    hpBase: 150, atkBase: 25, reward: { stones: 130, qi: 200 } },
+    { name: "Dao-Severing Fiend",     hpBase: 120, atkBase: 33, reward: { stones: 145, qi: 220 } },
+    { name: "Nine-Tailed Demoness",   hpBase: 105, atkBase: 31, reward: { stones: 135, qi: 205 } },
+  ],
+  [ // Tier 4 — stages 13-15 (Soul Transformation / Void / Mahayana)
+    { name: "Demon Serpent King",        hpBase: 180, atkBase: 40, reward: { stones: 200, qi: 310 } },
+    { name: "Ancient Lich Cultivator",   hpBase: 160, atkBase: 45, reward: { stones: 220, qi: 340 } },
+    { name: "Void Crawler Beast",        hpBase: 200, atkBase: 38, reward: { stones: 210, qi: 325 } },
+    { name: "Devouring Dark Phoenix",    hpBase: 170, atkBase: 42, reward: { stones: 215, qi: 330 } },
+    { name: "Star-Eating Leviathan",     hpBase: 190, atkBase: 41, reward: { stones: 225, qi: 345 } },
+    { name: "Realm-Crushing Wraith",     hpBase: 175, atkBase: 43, reward: { stones: 218, qi: 335 } },
+  ],
+  [ // Tier 5 — stage 16 (near immortal)
+    { name: "Celestial Demon Lord",      hpBase: 280, atkBase: 60, reward: { stones: 400, qi: 620 } },
+    { name: "Heaven-Defying Fiend King", hpBase: 260, atkBase: 65, reward: { stones: 420, qi: 660 } },
+    { name: "Mahayana Fallen Immortal",  hpBase: 300, atkBase: 58, reward: { stones: 450, qi: 720 } },
+    { name: "Primordial Chaos Dragon",   hpBase: 320, atkBase: 62, reward: { stones: 480, qi: 750 } },
+    { name: "Shattered God Remnant",     hpBase: 290, atkBase: 63, reward: { stones: 460, qi: 730 } },
+  ],
+];
+
+// Events — brkGain > 0 are insight events (rarer by design: only 4 of 14)
+const EVENTS = [
+  { text: "A wandering immortal elder imparts cryptic Dao wisdom", brkGain: 14 },
+  { text: "Spirit rain falls — the air thrums with dense Qi",      brkGain: 0  },
+  { text: "Ancient ruins surface from a collapsing cliffside",     brkGain: 0  },
+  { text: "The stars align — a rare celestial formation glows",    brkGain: 10 },
+  { text: "A heavenly tribulation strikes a nearby mountain",      brkGain: 0  },
+  { text: "A spirit beast nest fills the valley with life energy", brkGain: 0  },
+  { text: "Ancient Dao scriptures found in a fallen sect's vault", brkGain: 20 },
+  { text: "An invisible Qi tide surges through the mountain range",brkGain: 0  },
+  { text: "Lightning reveals an ancient inscription in the rock",  brkGain: 16 },
+  { text: "A dream of celestial courts brings Dao clarity",        brkGain: 0  },
+  { text: "A sect elder passes through, leaving traces of power",  brkGain: 0  },
+  { text: "The mountain blooms in rare spirit blossoms — good omen",brkGain: 0 },
+  { text: "A meteor falls — its core radiates spiritual insight",  brkGain: 0  },
+  { text: "The moon turns jade-green; old cultivators call it a Dao Moon", brkGain: 0 },
+];
+
+function getEnemyForStage(stage) {
+  const tierIdx = Math.min(5, Math.floor(stage / 3));
+  const tier = ENEMY_TIERS[tierIdx];
+  return tier[Math.floor(Math.random() * tier.length)];
+}
+
+function rollRoot() {
+  const r = Math.random(); let c = 0;
+  for (const root of ROOTS) { c += root.chance; if (r < c) return root; }
+  return ROOTS[4];
+}
+
+function fmtNum(n) {
+  if (n >= 1000000) return `${(n/1000000).toFixed(1)}M`;
+  if (n >= 1000)    return `${(n/1000).toFixed(1)}k`;
+  return String(Math.floor(n));
+}
+
+function canCraft(player, recipe) {
+  return Object.entries(recipe.ingredients).every(([k, v]) => (player.herbs[k] || 0) >= v);
+}
+
+const MAX_LOGS = 10;
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SUB-COMPONENTS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function Particles() {
+  const pts = useRef([...Array(18)].map(() => ({
+    x: Math.random()*100, y: 75+Math.random()*40,
+    s: 1+Math.random()*2.5, d: 10+Math.random()*16,
+    del: Math.random()*10, op: 0.15+Math.random()*0.35,
+  })));
+  return (
+    <div style={{position:"absolute",inset:0,overflow:"hidden",pointerEvents:"none",zIndex:0}}>
+      {pts.current.map((p,i)=>(
+        <div key={i} style={{position:"absolute",left:`${p.x}%`,top:`${p.y}%`,
+          width:`${p.s}px`,height:`${p.s}px`,borderRadius:"50%",background:"#D4A830",
+          opacity:p.op,animation:`floatUp ${p.d}s ${p.del}s infinite linear`}}/>
+      ))}
+    </div>
+  );
+}
+
+function Bar({ label, val, max, color, fmt=fmtNum, glow=false }) {
+  const pct = Math.min(100, Math.max(0, (val/max)*100));
+  const full = pct >= 100;
+  return (
+    <div style={{marginBottom:9}}>
+      <div style={{display:"flex",justifyContent:"space-between",fontSize:"0.67rem",marginBottom:3,letterSpacing:"0.05em"}}>
+        <span style={{color:"#9A8A70"}}>{label}</span>
+        <span style={{fontFamily:"monospace",fontWeight:600,color: full&&glow?"#FFD700":color}}>
+          {full&&glow ? "FULL ✦" : `${fmt(val)}`}
+          <span style={{color:"#4A4030",fontWeight:400}}>{!full&&" / "+fmt(max)}</span>
+        </span>
+      </div>
+      <div style={{height:7,background:"#181410",borderRadius:4,overflow:"hidden",border:`1px solid ${full&&glow?"#FFD70040":"#221A0C"}`}}>
+        <div style={{height:"100%",width:`${pct}%`,
+          background: full&&glow ? "linear-gradient(90deg,#C9A830,#FFD700,#C9A830)" : color,
+          borderRadius:4,transition:"width 0.4s ease",opacity:0.9}}/>
+      </div>
+    </div>
+  );
+}
+
+function PanelTab({ active, onClick, label }) {
+  return (
+    <button onClick={onClick} style={{
+      flex:1,padding:"7px 2px",cursor:"pointer",background:active?"#1C1810":"transparent",
+      border:"none",borderBottom:active?"2px solid #D4A830":"2px solid transparent",
+      color:active?"#D4A830":"#6A5A40",fontSize:"0.6rem",letterSpacing:"0.12em",
+      fontFamily:"'Cinzel',serif",transition:"all 0.15s",
+    }}>{label}</button>
+  );
+}
+
+function Btn({ onClick, disabled, icon, label, sub, color="#D4A830", pulse=false }) {
+  return (
+    <button onClick={onClick} disabled={disabled} style={{
+      background:disabled?"#10100C":"#16130D",
+      border:`1px solid ${disabled?"#252010":color}`,
+      borderRadius:6,padding:"9px 6px",cursor:disabled?"not-allowed":"pointer",
+      display:"flex",flexDirection:"column",alignItems:"center",gap:3,
+      flex:"1 1 0",minWidth:0,opacity:disabled?0.35:1,transition:"all 0.15s",
+      boxShadow: pulse&&!disabled ? `0 0 10px ${color}40` : "none",
+    }}>
+      <span style={{fontSize:"1.2rem",lineHeight:1}}>{icon}</span>
+      <span style={{fontSize:"0.68rem",fontWeight:700,color:disabled?"#3A3020":color,letterSpacing:"0.04em",fontFamily:"'Cinzel',serif"}}>{label}</span>
+      {sub && <span style={{fontSize:"0.58rem",color:"#6A5A40",textAlign:"center",lineHeight:1.3}}>{sub}</span>}
+    </button>
+  );
+}
+
+function LogEntry({ entry }) {
+  const styles = {
+    story:        { color:"#DDD0B0", borderLeft:"2px solid #4A3820", paddingLeft:10, lineHeight:1.72, fontStyle:"italic", fontSize:"0.82rem" },
+    system:       { color:"#7ACFB8", fontSize:"0.7rem", fontFamily:"monospace", opacity:0.9 },
+    combat:       { color:"#F08860", fontSize:"0.7rem", fontFamily:"monospace", fontWeight:700 },
+    breakthrough: { color:"#FFD700", fontWeight:700, textAlign:"center", fontSize:"0.9rem", padding:"6px 0", letterSpacing:"0.1em" },
+    event:        { color:"#C8A8E8", fontSize:"0.74rem", fontStyle:"italic" },
+  };
+  return <div style={{marginBottom:7,padding:"2px 0",...styles[entry.type]}}>{entry.text}</div>;
+}
+
+// Stat row for left panel
+function StatRow({ label, val, color }) {
+  return (
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:"0.7rem",marginBottom:7}}>
+      <span style={{color:"#8A7A50"}}>{label}</span>
+      <span style={{color,fontWeight:700,fontFamily:"monospace"}}>{val}</span>
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// MAIN GAME
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function XianxiaGame() {
+  const [screen, setScreen] = useState("title");
+  const [cStep,  setCStep]  = useState(0);
+  const [cForm,  setCForm]  = useState({ name:"", root:null, element:null });
+  const [reveal, setReveal] = useState(null);
+  const [player, setPlayer] = useState(null);
+  const [logs,   setLogs]   = useState([]);
+  const [turn,   setTurn]   = useState(1);
+  const [busy,   setBusy]   = useState(false);
+  const [combat, setCombat] = useState(null);
+  const [lTab,   setLTab]   = useState("stats");
+  const logRef  = useRef(null);
+  const turnRef = useRef(1);
+
+  const useEffect = (fn, deps) => { const r = useRef({}); if (!r.current.init || deps.some((d,i)=>d!==r.current.deps?.[i])) { r.current.init=true; r.current.deps=deps; fn(); } };
+
+  const scrollToBottom = useCallback(() => {
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+  }, []);
+
+  const addLog = useCallback((text, type="story") => {
+    setLogs(l => {
+      const next = [...l, { id: Date.now()+Math.random(), text, type }];
+      return next.length > MAX_LOGS ? next.slice(-MAX_LOGS) : next;
+    });
+    setTimeout(scrollToBottom, 50);
+  }, [scrollToBottom]);
+
+  // -- LOCAL NARRATION ------------------
+  const narrate = useCallback(async (prompt, ctxStr="") => {
+    setBusy(true);
+    const templates = [
+      "The dantian stirs as {line}, and the surrounding Qi answers in a low, invisible tide.",
+      "{name} follows the thread of fate through {line}, feeling the Dao leave a quiet mark upon the soul.",
+      "Meridians brighten like hidden constellations while {line}, the moment settling into legend.",
+      "For one breath the mortal world falls away: {line}, and distant heavens seem to listen."
+    ];
+    const clean = String(prompt)
+      .replace(/\s+/g, " ")
+      .replace(/\bDescribe this\b.*$/i, "")
+      .replace(/\.$/, "")
+      .trim();
+    const name = (ctxStr.match(/^([^,]+)/)?.[1] || "The cultivator").trim();
+    const pick = templates[Math.floor(Math.random() * templates.length)];
+    const line = clean.charAt(0).toLowerCase() + clean.slice(1);
+    addLog(pick.replace("{name}", name).replace("{line}", line), "story");
+    setBusy(false);
+    setTimeout(scrollToBottom, 80);
+  }, [addLog, scrollToBottom]);
+
+  const ctx = (p) => p ? `${p.name}, ${p.root?.short||""} ${p.element||""}, ${STAGES[p.stage].name}` : "";
+
+  // Computed qi thresholds
+  const qiCap    = (p) => STAGES[p.stage+1]?.qiReq ?? STAGES[p.stage].qiReq;
+  const qiFull   = (p) => p.qi >= qiCap(p);
+  const qiInStage = (p) => p.qi - STAGES[p.stage].qiReq;
+  const qiRange   = (p) => (STAGES[p.stage+1]?.qiReq ?? STAGES[p.stage].qiReq) - STAGES[p.stage].qiReq;
+
+  // ── CHARACTER CREATION ────────────────
+  const handleReveal = () => { const r=rollRoot(); setReveal(r); setCForm(f=>({...f,root:r})); };
+
+  const startGame = async () => {
+    const root    = cForm.root || rollRoot();
+    const element = cForm.element || ELEMENTS[Math.floor(Math.random()*ELEMENTS.length)];
+    const p = {
+      name: cForm.name.trim() || "Nameless One",
+      root, element,
+      stage: 0,
+      qi: 0,
+      hp: 80, maxHp: 80,
+      stones: 30, age: 16,
+      comprehension: 30+Math.floor(Math.random()*40),
+      luck:          30+Math.floor(Math.random()*40),
+      brkGauge: 0,
+      kills: 0,
+      actionCount: 0,
+      pills: { qi:0, found:0, core:0 },
+      herbs: { spiritGrass:2, moonFlower:0, goldenLotus:0 },
+    };
+    setPlayer(p); setTurn(1); setLogs([]); setScreen("play");
+    turnRef.current = 1;
+    await narrate(
+      `${p.name}, a mortal of ${p.element} affinity, stands beneath the ancient sect mountain and takes their first breath toward the path of immortality. Describe this humble, charged beginning.`,
+      ctx(p)
+    );
+    addLog(`You are Mortal — meditate to sense your first Qi and begin cultivating.`, "system");
+  };
+
+  // ── MEDITATE ─────────────────────────
+  const doMeditate = async () => {
+    if (busy||combat) return;
+    let p = {...player};
+    const full = qiFull(p);
+
+    if (full) {
+      // Qi saturated — fill breakthrough gauge instead
+      const gain = Math.max(2, Math.floor(2 + p.comprehension/18 + Math.random()*4));
+      const newGauge = Math.min(100, p.brkGauge + gain);
+      p = { ...p, brkGauge: newGauge };
+      setPlayer(p);
+      await narrate(
+        `${p.name}'s dantian overflows with Qi — unable to absorb more, the surplus surges inward, deepening their understanding of the Dao.`,
+        ctx(p)
+      );
+      addLog(`☯ Qi FULL — Breakthrough gauge +${gain}% → ${newGauge}%`, "system");
+    } else {
+      // Normal qi accumulation
+      const base = p.stage === 0 ? 8 : 24;
+      const gained = Math.floor((base + Math.random()*20) * p.root.mod * (1 + p.comprehension/90));
+      const cap = qiCap(p);
+      const insight = Math.random() < 0.09;
+      const prevQi = p.qi;
+      p = {
+        ...p,
+        qi: Math.min(cap, p.qi + gained),
+        comprehension: insight ? Math.min(100, p.comprehension+1) : p.comprehension,
+      };
+      const nowFull = p.qi >= cap;
+      setPlayer(p);
+      await narrate(
+        p.stage === 0
+          ? `${p.name} closes their eyes and reaches inward — a faint shimmer of spiritual energy stirs in their chest for the first time.`
+          : `${p.name} draws ${fmtNum(gained)} Qi into the dantian, the meridians glowing with gathered power.${insight?" A flash of Dao insight illuminates the path ahead.":""}`,
+        ctx(p)
+      );
+      addLog(`☯ Meditate — +${fmtNum(gained)} Qi${insight?" · Insight! Comprehension +1":""}${nowFull?" · Qi FULL ✦":""}`, "system");
+    }
+    advTurn(p);
+  };
+
+  // ── BREAKTHROUGH ─────────────────────
+  const doBreakthrough = async () => {
+    if (busy||combat||player.brkGauge<=0||!STAGES[player.stage+1]) return;
+    const chance = Math.min(0.93, (player.brkGauge/100) * (0.4 + player.comprehension/150));
+    const success = Math.random() < chance;
+    let p = {...player};
+
+    if (success) {
+      const ns = player.stage+1;
+      p = { ...p, stage:ns, brkGauge:0, maxHp: Math.floor(p.maxHp*1.15), hp: Math.floor(p.maxHp*1.15) };
+      setPlayer(p);
+      await narrate(
+        `The heavens crack — ${p.name} shatters the shackles of ${STAGES[ns-1].name} in a blinding surge of spiritual energy and ascends to ${STAGES[ns].name}.`,
+        ctx(p)
+      );
+      addLog(`⚡ BREAKTHROUGH SUCCESS — ${STAGES[ns-1].name} → ${STAGES[ns].name} ✦`, "breakthrough");
+      if (ns===STAGES.length-1) setTimeout(()=>setScreen("win"),1800);
+    } else {
+      const brkLoss = 22+Math.floor(Math.random()*16);
+      const hpLoss  = Math.floor(p.maxHp*(0.14+Math.random()*0.1));
+      p = { ...p, brkGauge:Math.max(0,p.brkGauge-brkLoss), hp:Math.max(1,p.hp-hpLoss) };
+      setPlayer(p);
+      await narrate(
+        `The heavenly tribulation descends — ${p.name}'s attempt falters as the spiritual pressure tears at the body, scattering hard-won insight like ash in the wind.`,
+        ctx(p)
+      );
+      addLog(`💢 Breakthrough failed — Gauge −${brkLoss}% · HP −${hpLoss} (tribulation backlash)`, "combat");
+    }
+    advTurn(p);
+  };
+
+  // ── EXPLORE ──────────────────────────
+  const doExplore = async () => {
+    if (busy||combat) return;
+    const roll = Math.random()+(player.luck/110);
+    let p = {...player};
+
+    if (roll > 1.35) {
+      // Spirit vein
+      const qi = Math.floor(80+Math.random()*120);
+      const cap = qiCap(p);
+      p.qi = Math.min(cap, p.qi+qi);
+      await narrate(`${p.name} stumbles upon a hidden spirit vein humming beneath the earth, greedily absorbing its dense energy.`, ctx(p));
+      addLog(`✨ Spirit Vein found — +${fmtNum(qi)} Qi`, "system");
+    } else if (roll > 1.10) {
+      // Golden Lotus (rare herb)
+      p.herbs = {...p.herbs, goldenLotus: p.herbs.goldenLotus+1};
+      await narrate(`A Golden Lotus blooms in a secluded grotto, pulsing with centuries of accumulated spiritual essence.`, ctx(p));
+      addLog(`🏵 Rare find — Golden Lotus ×1 (Alchemy: Core Elixir)`, "system");
+    } else if (roll > 0.88) {
+      // Moon Flower (uncommon herb)
+      const amt = 1+Math.floor(Math.random()*2);
+      p.herbs = {...p.herbs, moonFlower: p.herbs.moonFlower+amt};
+      await narrate(`Azure Moon Flowers cluster beneath a shaded cliff, their petals shimmering with cool lunar energy.`, ctx(p));
+      addLog(`🌸 Found Azure Moon Flower ×${amt} (Alchemy: Found. Pill)`, "system");
+    } else if (roll > 0.68) {
+      // Spirit stones
+      const s = 18+Math.floor(Math.random()*55);
+      p.stones += s;
+      await narrate(`${p.name} unearths a cache of spirit stones half-buried in ancient soil.`, ctx(p));
+      addLog(`💎 Spirit Stones +${s}`, "system");
+    } else if (roll > 0.52) {
+      // Spirit Grass (common herb)
+      const amt = 1+Math.floor(Math.random()*3);
+      p.herbs = {...p.herbs, spiritGrass: p.herbs.spiritGrass+amt};
+      await narrate(`Patches of Spirit Grass carpet a sun-warmed clearing, their roots thick with gathered Qi.`, ctx(p));
+      addLog(`🌿 Spirit Grass ×${amt} (Alchemy: Qi Pill)`, "system");
+    } else if (roll > 0.35) {
+      // Combat encounter
+      setPlayer(p);
+      await spawnCombat(p);
+      return;
+    } else {
+      await narrate(`${p.name} walks the wilderness — the wind carries no fortune today, only the scent of pine and distance.`, ctx(p));
+      addLog(`🌄 Explored — nothing found`, "system");
+    }
+    setPlayer(p);
+    advTurn(p);
+  };
+
+  // ── COMBAT ───────────────────────────
+  const spawnCombat = async (p) => {
+    const base = getEnemyForStage(p.stage);
+    const e = {
+      ...base,
+      hp:    Math.floor(base.hpBase + p.stage*11),
+      maxHp: Math.floor(base.hpBase + p.stage*11),
+      atk:   Math.floor(base.atkBase + p.stage*2.2),
+    };
+    setCombat(e);
+    await narrate(`A ${e.name} materialises from the mist, its hostile spiritual pressure locking ${p.name} in place.`, ctx(p));
+    addLog(`⚔️ ENCOUNTER — ${e.name}  HP ${e.hp} · ATK ${e.atk}`, "combat");
+  };
+
+  const doAttack = async () => {
+    if (busy||!combat) return;
+    const pAtk   = Math.floor(9 + player.stage*5.5 + Math.random()*20);
+    const eAtk   = Math.floor(combat.atk*(0.7+Math.random()*0.55));
+    const newEHp = Math.max(0, combat.hp-pAtk);
+    const newPHp = Math.max(0, player.hp-eAtk);
+    const won=newEHp<=0, died=newPHp<=0;
+    let p = {...player, hp:newPHp};
+
+    if (won) {
+      p.stones += combat.reward.stones;
+      const capQi = qiCap(p);
+      p.qi = Math.min(capQi, p.qi+combat.reward.qi);
+      p.kills += 1;
+      setCombat(null);
+      await narrate(`${p.name} delivers the killing blow — the ${combat.name} collapses as its spiritual energy disperses into the wind.`, ctx(p));
+      addLog(`✅ Victory — +${combat.reward.stones}💎  +${fmtNum(combat.reward.qi)} Qi · Kills: ${p.kills}`, "system");
+      setPlayer(p);
+      advTurn(p);
+    } else if (died) {
+      setPlayer(p);
+      await narrate(`${player.name} is struck down by the ${combat.name} — their Qi scatters like autumn leaves, the dream of immortality extinguished.`, ctx(player));
+      addLog(`💀 ${player.name} has fallen in battle...`, "system");
+      setScreen("dead");
+    } else {
+      setCombat({...combat, hp:newEHp});
+      setPlayer(p);
+      await narrate(`${p.name} and the ${combat.name} trade fierce blows — enemy HP ${newEHp}, ${p.name} HP ${newPHp}.`, ctx(p));
+      addLog(`⚔️ Dealt ${pAtk} dmg · Took ${eAtk} dmg`, "combat");
+    }
+  };
+
+  const doFlee = () => {
+    if (busy||!combat) return;
+    if (Math.random() < 0.52+player.luck/260) {
+      setCombat(null);
+      addLog(`🏃 Fled from ${combat.name} successfully`, "system");
+      advTurn(player);
+    } else {
+      const dmg=Math.floor(combat.atk*1.4);
+      const p={...player,hp:Math.max(0,player.hp-dmg)};
+      setPlayer(p);
+      addLog(`🏃 Flee failed — took ${dmg} damage`, "combat");
+      if (p.hp<=0) setScreen("dead");
+    }
+  };
+
+  // ── REST ─────────────────────────────
+  const doRest = async () => {
+    if (busy||combat) return;
+    const heal = Math.floor(24+Math.random()*36);
+    const newAge = player.age+1;
+    if (newAge >= STAGES[player.stage].maxAge) {
+      await narrate(`${player.name} has cultivated for too long without ascending — time claims what the Dao could not.`, ctx(player));
+      addLog(`⏳ Succumbed to old age at ${newAge}`, "system");
+      setScreen("dead"); return;
+    }
+    const p = {...player, hp:Math.min(player.maxHp,player.hp+heal), age:newAge};
+    setPlayer(p);
+    await narrate(`${p.name} rests beneath the stars, the body mending as the mind drifts through half-remembered Dao dreams.`, ctx(p));
+    addLog(`💤 Rest — HP +${heal} · Age ${newAge} / ${STAGES[p.stage].maxAge===Infinity?"∞":STAGES[p.stage].maxAge}`, "system");
+    advTurn(p);
+  };
+
+  // ── ALCHEMY ──────────────────────────
+  const doCraft = async (recipeKey) => {
+    if (busy) return;
+    const recipe = RECIPES.find(r=>r.key===recipeKey);
+    if (!canCraft(player, recipe)) return;
+    const newHerbs = {...player.herbs};
+    Object.entries(recipe.ingredients).forEach(([k,v]) => { newHerbs[k] -= v; });
+    const p = {...player, herbs:newHerbs, pills:{...player.pills, [recipeKey]:player.pills[recipeKey]+1}};
+    setPlayer(p);
+    await narrate(`${p.name} tends the alchemical flame, distilling the spiritual herbs into a ${recipe.name} that radiates warm golden light.`, ctx(p));
+    addLog(`⚗️ Crafted ${recipe.name} — pill inventory ×${p.pills[recipeKey]}`, "system");
+  };
+
+  const doUsePill = async (key) => {
+    if (busy||player.pills[key]<=0) return;
+    const recipe = RECIPES.find(r=>r.key===key);
+    const cap = qiCap(player);
+    let p = {
+      ...player,
+      qi: Math.min(cap, player.qi+recipe.qiGain),
+      pills:{...player.pills,[key]:player.pills[key]-1}
+    };
+    setPlayer(p);
+    await narrate(`${p.name} swallows the ${recipe.name} — spiritual fire surges through the meridians, flooding the dantian.`, ctx(p));
+    addLog(`💊 ${recipe.short} consumed — +${fmtNum(recipe.qiGain)} Qi${p.qi>=cap?" · Qi FULL ✦":""}`, "system");
+    advTurn(p);
+  };
+
+  const doBuy = (key) => {
+    const recipe = RECIPES.find(r=>r.key===key);
+    if (player.stones<recipe.shopCost) { addLog(`❌ Need ${recipe.shopCost}💎 (have ${player.stones})`, "system"); return; }
+    const p = {...player, stones:player.stones-recipe.shopCost, pills:{...player.pills,[key]:player.pills[key]+1}};
+    setPlayer(p);
+    addLog(`🛒 Bought ${recipe.short} for ${recipe.shopCost}💎 · Stock ×${p.pills[key]}`, "system");
+  };
+
+  // ── ADVANCE TURN ─────────────────────
+  // Every 12 meditate/explore/combat actions = 1 year passes.
+  // Rest always adds 1 year directly (handled in doRest).
+  const advTurn = (p) => {
+    const t = turnRef.current + 1;
+    turnRef.current = t;
+    setTurn(t);
+
+    // Age tracking: 12 actions = 1 year
+    const newActionCount = (p.actionCount || 0) + 1;
+    let updatedP = { ...p, actionCount: newActionCount };
+
+    if (newActionCount >= 12) {
+      const newAge = updatedP.age + 1;
+      updatedP = { ...updatedP, age: newAge, actionCount: 0 };
+      const maxAge = STAGES[updatedP.stage].maxAge;
+      if (newAge >= maxAge) {
+        setPlayer(updatedP);
+        addLog(`⏳ ${updatedP.name} succumbed to old age at ${newAge} — the Dao waits for none.`, "system");
+        setTimeout(() => setScreen("dead"), 800);
+        return;
+      }
+      addLog(`🕰️ A year passes — Age ${newAge} / ${maxAge === Infinity ? "∞" : maxAge}`, "system");
+    }
+
+    setPlayer(updatedP);
+
+    // Random event every ~15 turns
+    if (t % 15 === 0) {
+      const ev = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+      if (ev.brkGain > 0) {
+        const modifiedGain = Math.floor(ev.brkGain * (0.7 + updatedP.comprehension / 200));
+        const newGauge = Math.min(100, updatedP.brkGauge + modifiedGain);
+        setPlayer(prev => ({ ...prev, brkGauge: newGauge }));
+        addLog(`📜 ${ev.text} — Breakthrough +${modifiedGain}%`, "event");
+      } else {
+        addLog(`📜 ${ev.text}`, "event");
+      }
+    }
+  };
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // COMPUTED
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  const stg      = player ? STAGES[player.stage] : null;
+  const nextStg  = player ? STAGES[player.stage+1] : null;
+  const isQiFull = player ? qiFull(player) : false;
+  const brkChance = player ? Math.min(93, Math.round((player.brkGauge/100)*(0.4+player.comprehension/150)*100)) : 0;
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // CSS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  const css = `
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Crimson+Text:ital,wght@0,400;1,400&display=swap');
+    @keyframes floatUp{0%{transform:translateY(0);opacity:0}10%{opacity:0.5}90%{opacity:0.2}100%{transform:translateY(-130vh);opacity:0}}
+    @keyframes dotBlink{0%,80%,100%{opacity:0.1}40%{opacity:1}}
+    @keyframes glow{0%,100%{box-shadow:0 0 6px #FFD70044}50%{box-shadow:0 0 16px #FFD70088}}
+    *{box-sizing:border-box;margin:0;padding:0}
+    ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#0C0A08}::-webkit-scrollbar-thumb{background:#3A2C18;border-radius:3px}
+    button:hover:not(:disabled){filter:brightness(1.2);transform:translateY(-1px);transition:all 0.13s}
+    button:active:not(:disabled){transform:translateY(0)}
+  `;
+
+  const rootBg = {
+    minHeight:"100vh",background:"#080610",color:"#DDD0B0",
+    position:"relative",overflow:"hidden",fontFamily:"'Crimson Text','Georgia',serif",
+  };
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // TITLE
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if (screen==="title") return (
+    <div style={rootBg}>
+      <style>{css}</style>
+      <Particles/>
+      <div style={{position:"relative",zIndex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"100vh",padding:"2rem",textAlign:"center"}}>
+        <div style={{fontSize:"0.65rem",letterSpacing:"0.5em",color:"#3A2C10",marginBottom:"1.5rem"}}>— ✦ —</div>
+        <h1 style={{fontFamily:"'Cinzel',serif",fontSize:"clamp(3rem,9vw,6.5rem)",fontWeight:900,color:"#D4A830",letterSpacing:"0.15em",lineHeight:1,marginBottom:"0.3rem"}}>仙途</h1>
+        <h2 style={{fontFamily:"'Cinzel',serif",fontSize:"clamp(0.6rem,2vw,0.85rem)",fontWeight:500,letterSpacing:"0.5em",color:"#7A6840",marginBottom:"2rem"}}>PATH TO IMMORTALITY</h2>
+        <p style={{maxWidth:400,color:"#8A7858",fontSize:"0.95rem",lineHeight:1.9,marginBottom:"3rem",fontStyle:"italic"}}>
+          Walk the razor's edge between mortal dust and celestial light.<br/>Cultivate your Qi. Forge your Dao. Transcend death itself.
+        </p>
+        <div style={{fontSize:"0.65rem",letterSpacing:"0.4em",color:"#2A2010",marginBottom:"2.5rem"}}>— ✦ —</div>
+        <button onClick={()=>setScreen("create")} style={{background:"transparent",border:"1px solid #D4A830",color:"#D4A830",fontFamily:"'Cinzel',serif",fontSize:"0.82rem",letterSpacing:"0.25em",padding:"14px 42px",borderRadius:4,cursor:"pointer"}}>
+          BEGIN YOUR CULTIVATION
+        </button>
+        <div style={{marginTop:"2.5rem",fontSize:"0.6rem",color:"#282010",letterSpacing:"0.18em"}}>16 REALMS · ALCHEMY · MANUAL BREAKTHROUGH · AI-NARRATED</div>
+      </div>
+    </div>
+  );
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // CHARACTER CREATION
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if (screen==="create") return (
+    <div style={rootBg}>
+      <style>{css}</style>
+      <Particles/>
+      <div style={{position:"relative",zIndex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"100vh",padding:"2rem"}}>
+        <div style={{width:"100%",maxWidth:500,background:"#0D0A08",border:"1px solid #2A2010",borderRadius:8,padding:"2.5rem"}}>
+          <h2 style={{fontFamily:"'Cinzel',serif",textAlign:"center",letterSpacing:"0.2em",fontSize:"0.88rem",color:"#D4A830",marginBottom:"0.3rem"}}>FORGE YOUR DESTINY</h2>
+          <div style={{textAlign:"center",fontSize:"0.6rem",color:"#3A2C14",letterSpacing:"0.2em",marginBottom:"2rem"}}>STEP {cStep+1} OF 3</div>
+          {cStep===0 && (
+            <div>
+              <p style={{color:"#8A7858",fontStyle:"italic",textAlign:"center",marginBottom:"1.5rem",lineHeight:1.8}}>What name shall ring through the heavens when you achieve immortality?</p>
+              <input style={{width:"100%",background:"#0A0807",border:"1px solid #3A2C14",borderRadius:4,padding:"12px 16px",color:"#DDD0B0",fontSize:"1rem",fontFamily:"'Crimson Text',serif",outline:"none",marginBottom:"1.2rem"}}
+                placeholder="Enter your cultivator name..."
+                value={cForm.name} onChange={e=>setCForm(f=>({...f,name:e.target.value}))} maxLength={30}/>
+              <button onClick={()=>setCStep(1)} style={{width:"100%",background:"transparent",border:"1px solid #D4A830",color:"#D4A830",fontFamily:"'Cinzel',serif",fontSize:"0.78rem",letterSpacing:"0.2em",padding:"12px",borderRadius:4,cursor:"pointer"}}>CONFIRM NAME</button>
+            </div>
+          )}
+          {cStep===1 && (
+            <div>
+              <p style={{color:"#8A7858",fontStyle:"italic",textAlign:"center",marginBottom:"1.5rem",lineHeight:1.8}}>Stand before the Heaven's Testing Stone.<br/>It shall reveal the spiritual root you were born with.</p>
+              {!reveal ? (
+                <button onClick={handleReveal} style={{width:"100%",background:"transparent",border:"1px solid #D4A830",color:"#D4A830",fontFamily:"'Cinzel',serif",fontSize:"0.78rem",letterSpacing:"0.2em",padding:"12px",borderRadius:4,cursor:"pointer"}}>TOUCH THE HEAVEN'S STONE</button>
+              ) : (
+                <div>
+                  <div style={{border:`1px solid ${reveal.color}`,borderRadius:6,padding:"1.5rem",textAlign:"center",marginBottom:"1.2rem",background:"#0A0807"}}>
+                    <div style={{fontSize:"0.55rem",letterSpacing:"0.4em",color:reveal.color,marginBottom:"0.4rem"}}>{reveal.rarity}</div>
+                    <div style={{fontFamily:"'Cinzel',serif",fontSize:"1rem",color:reveal.color,fontWeight:700,marginBottom:"0.5rem"}}>{reveal.name}</div>
+                    <div style={{color:"#8A7858",fontSize:"0.78rem",fontStyle:"italic",marginBottom:"0.8rem"}}>{reveal.desc}</div>
+                    <div style={{color:"#5A4A30",fontSize:"0.68rem"}}>Cultivation Speed <span style={{color:reveal.color,fontWeight:700}}>×{reveal.mod.toFixed(1)}</span></div>
+                  </div>
+                  <button onClick={()=>setCStep(2)} style={{width:"100%",background:"transparent",border:"1px solid #D4A830",color:"#D4A830",fontFamily:"'Cinzel',serif",fontSize:"0.78rem",letterSpacing:"0.2em",padding:"12px",borderRadius:4,cursor:"pointer"}}>ACCEPT YOUR FATE</button>
+                </div>
+              )}
+              <div style={{marginTop:"0.8rem",fontSize:"0.58rem",color:"#3A2C14",textAlign:"center"}}>2% Heavenly · 8% Variant · 20% Dual · 35% Single · 35% Pseudo</div>
+            </div>
+          )}
+          {cStep===2 && (
+            <div>
+              <p style={{color:"#8A7858",fontStyle:"italic",textAlign:"center",marginBottom:"1.2rem",lineHeight:1.8}}>Choose your elemental affinity — the nature of your Dao.</p>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:7,marginBottom:"1.2rem"}}>
+                {ELEMENTS.map(el=>(
+                  <button key={el} onClick={()=>setCForm(f=>({...f,element:el}))} style={{
+                    background:cForm.element===el?"#1A1610":"transparent",
+                    border:`1px solid ${cForm.element===el?"#D4A830":"#2A2010"}`,
+                    borderRadius:4,padding:"10px 8px",cursor:"pointer",
+                    color:cForm.element===el?"#D4A830":"#8A7858",
+                    fontSize:"0.82rem",fontFamily:"'Crimson Text',serif",transition:"all 0.13s",
+                  }}>{el}</button>
+                ))}
+              </div>
+              {cForm.element && <button onClick={startGame} style={{width:"100%",background:"transparent",border:"1px solid #D4A830",color:"#D4A830",fontFamily:"'Cinzel',serif",fontSize:"0.78rem",letterSpacing:"0.2em",padding:"12px",borderRadius:4,cursor:"pointer"}}>BEGIN AS A MORTAL</button>}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // DEAD / WIN
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if ((screen==="dead"||screen==="win") && player) {
+    const isWin=screen==="win";
+    return (
+      <div style={rootBg}>
+        <style>{css}</style>
+        <Particles/>
+        <div style={{position:"relative",zIndex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"100vh",padding:"2rem",textAlign:"center"}}>
+          <div style={{fontSize:"3rem",marginBottom:"1rem"}}>{isWin?"✦":"☠"}</div>
+          <h2 style={{fontFamily:"'Cinzel',serif",fontSize:"1.35rem",color:isWin?"#FFD700":"#D06050",letterSpacing:"0.2em",marginBottom:"1rem"}}>
+            {isWin?"IMMORTALITY ACHIEVED":"THE PATH ENDS HERE"}
+          </h2>
+          <p style={{maxWidth:400,color:"#8A7858",fontStyle:"italic",lineHeight:1.9,fontSize:"0.92rem",marginBottom:"2rem"}}>
+            {isWin
+              ? `${player.name} has transcended mortality. Their legend echoes through ten thousand ages.`
+              : `${player.name}'s path ended at ${stg?.name} — age ${player.age}, ${turn} turns, ${player.kills} enemies slain.`}
+          </p>
+          <button onClick={()=>{setPlayer(null);setLogs([]);setTurn(1);setCombat(null);setCStep(0);setCForm({name:"",root:null,element:null});setReveal(null);turnRef.current=1;setScreen("title");}}
+            style={{background:"transparent",border:`1px solid ${isWin?"#FFD700":"#D06050"}`,color:isWin?"#FFD700":"#D06050",fontFamily:"'Cinzel',serif",fontSize:"0.78rem",letterSpacing:"0.2em",padding:"12px 36px",borderRadius:4,cursor:"pointer"}}>
+            {isWin?"BEGIN A NEW LEGEND":"RISE AGAIN"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // MAIN GAME SCREEN
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if (screen==="play" && player) return (
+    <div style={{...rootBg,display:"flex",flexDirection:"column",height:"100vh"}}>
+      <style>{css}</style>
+
+      {/* ── HEADER ── */}
+      <div style={{background:"#0C0908",borderBottom:"1px solid #1E1810",padding:"0 16px",height:48,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,zIndex:2}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontFamily:"'Cinzel',serif",fontWeight:700,fontSize:"1rem",color:"#D4A830"}}>{player.name}</span>
+          <span style={{fontSize:"0.58rem",background:"#18140C",border:`1px solid ${stg.color}44`,color:stg.color,borderRadius:3,padding:"2px 9px",letterSpacing:"0.06em",fontFamily:"'Cinzel',serif"}}>{stg.name}</span>
+          <span style={{fontSize:"0.58rem",color:"#6A5A30",background:"#14110A",borderRadius:3,padding:"2px 8px",border:"1px solid #221A0C"}}>{player.element}</span>
+        </div>
+        <div style={{display:"flex",gap:18}}>
+          {[["TURN",turn,"#6A5A38"],["AGE",player.age,"#8A8070"],["KILLS",player.kills,"#F08860"],["STONES",`💎 ${player.stones}`,"#7ACFB8"]].map(([l,v,c])=>(
+            <div key={l} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
+              <span style={{color:"#3A3020",fontSize:"0.52rem",letterSpacing:"0.1em",fontFamily:"monospace"}}>{l}</span>
+              <span style={{color:c,fontSize:"0.72rem",fontFamily:"monospace",fontWeight:600}}>{v}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── BODY ── */}
+      <div style={{display:"flex",flex:1,overflow:"hidden"}}>
+
+        {/* LEFT PANEL 235px */}
+        <div style={{width:235,background:"#0B0908",borderRight:"1px solid #1E1810",display:"flex",flexDirection:"column",flexShrink:0}}>
+          <div style={{display:"flex",borderBottom:"1px solid #1E1810",background:"#0D0A08"}}>
+            {[["stats","STATS"],["realms","REALMS"],["alchemy","ALCHEMY"]].map(([t,l])=>(
+              <PanelTab key={t} active={lTab===t} onClick={()=>setLTab(t)} label={l}/>
+            ))}
+          </div>
+          <div style={{flex:1,overflowY:"auto",padding:"13px 12px"}}>
+
+            {/* STATS */}
+            {lTab==="stats" && (
+              <div>
+                {/* Root card */}
+                <div style={{marginBottom:13,padding:"10px 11px",background:"#100E0A",borderRadius:6,border:"1px solid #221A0C"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                    <span style={{fontSize:"0.57rem",letterSpacing:"0.12em",color:"#5A4A28"}}>SPIRITUAL ROOT</span>
+                    <span style={{fontSize:"0.53rem",color:player.root.color,background:`${player.root.color}20`,padding:"1px 6px",borderRadius:2,letterSpacing:"0.08em"}}>{player.root.rarity}</span>
+                  </div>
+                  <div style={{color:player.root.color,fontSize:"0.78rem",fontWeight:700,marginBottom:2}}>{player.root.name}</div>
+                  <div style={{color:"#6A5A38",fontSize:"0.6rem"}}>Speed ×{player.root.mod.toFixed(1)}</div>
+                </div>
+
+                {/* Qi bar — fills to next stage threshold */}
+                {nextStg ? (
+                  <Bar label={`QI — Toward ${nextStg.name}`}
+                    val={qiInStage(player)} max={qiRange(player)}
+                    color={isQiFull?"#FFD700":stg.color} glow={isQiFull}/>
+                ) : (
+                  <div style={{fontSize:"0.7rem",color:"#FFD700",textAlign:"center",marginBottom:10}}>✦ IMMORTAL — TRANSCENDED ✦</div>
+                )}
+
+                <Bar label="HEALTH" val={player.hp} max={player.maxHp} color="#D06050" fmt={n=>n}/>
+
+                {/* Breakthrough gauge */}
+                <div style={{marginBottom:13}}>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:"0.67rem",marginBottom:3}}>
+                    <span style={{color:"#9A8A70",letterSpacing:"0.04em"}}>BREAKTHROUGH</span>
+                    <span style={{color:player.brkGauge>=80?"#FFD700":player.brkGauge>=40?"#F0D060":"#6A5A40",fontFamily:"monospace",fontWeight:700}}>{player.brkGauge}%</span>
+                  </div>
+                  <div style={{height:7,background:"#181410",borderRadius:4,overflow:"hidden",border:`1px solid ${player.brkGauge>=80?"#FFD70040":"#221A0C"}`}}>
+                    <div style={{height:"100%",width:`${player.brkGauge}%`,
+                      background:player.brkGauge>=80?"linear-gradient(90deg,#C9A830,#FFD700)":player.brkGauge>=40?"#F0D060":"#5A5030",
+                      borderRadius:4,transition:"width 0.4s",opacity:0.9}}/>
+                  </div>
+                  {player.brkGauge>0 && nextStg && (
+                    <div style={{fontSize:"0.58rem",color:"#6A5A30",marginTop:2}}>Success chance: ~{brkChance}%</div>
+                  )}
+                </div>
+
+                {/* Stats grid */}
+                <div style={{background:"#100E0A",borderRadius:6,border:"1px solid #221A0C",padding:"10px 11px",marginBottom:12}}>
+                  <StatRow label="🧠 Comprehension" val={player.comprehension} color="#C8A0E0"/>
+                  <StatRow label="🍀 Luck"          val={player.luck}          color="#F0D060"/>
+                  <StatRow label="⚔️ Kills"          val={player.kills}         color="#F08860"/>
+                </div>
+
+                {/* Lifespan */}
+                <div style={{background:"#100E0A",borderRadius:6,border:"1px solid #221A0C",padding:"10px 11px"}}>
+                  <div style={{fontSize:"0.55rem",letterSpacing:"0.12em",color:"#5A4A28",marginBottom:6}}>LIFESPAN</div>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:"0.7rem",marginBottom:6}}>
+                    <span style={{color:"#8A7A50"}}>Age</span>
+                    <span style={{color:"#DDD0B0",fontFamily:"monospace"}}>{player.age}<span style={{color:"#3A3020"}}> / {STAGES[player.stage].maxAge===Infinity?"∞":STAGES[player.stage].maxAge}</span></span>
+                  </div>
+                  {STAGES[player.stage].maxAge!==Infinity&&(
+                    <div style={{height:4,background:"#181410",borderRadius:2,overflow:"hidden",border:"1px solid #221A0C"}}>
+                      <div style={{height:"100%",width:`${Math.min(100,(player.age/STAGES[player.stage].maxAge)*100)}%`,background:"#904030",borderRadius:2}}/>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* REALMS */}
+            {lTab==="realms" && (
+              <div>
+                <div style={{marginBottom:10,padding:"9px 10px",background:`${stg.color}12`,borderRadius:6,border:`1px solid ${stg.color}28`}}>
+                  <div style={{fontSize:"0.58rem",letterSpacing:"0.1em",color:stg.color,marginBottom:3}}>CURRENT REALM</div>
+                  <div style={{color:stg.color,fontFamily:"'Cinzel',serif",fontSize:"0.8rem",fontWeight:700,marginBottom:3}}>{stg.name}</div>
+                  <div style={{color:"#8A7A50",fontSize:"0.65rem",fontStyle:"italic",lineHeight:1.5}}>{stg.desc}</div>
+                </div>
+                <div style={{fontSize:"0.55rem",letterSpacing:"0.1em",color:"#4A3A20",marginBottom:7}}>ALL REALMS</div>
+                {STAGES.map((s,i) => {
+                  const done=player.stage>i, active=player.stage===i;
+                  return (
+                    <div key={i} style={{display:"flex",alignItems:"flex-start",gap:8,marginBottom:5,padding:"5px 8px",borderRadius:4,
+                      background:active?"#1A1610":"transparent",border:active?`1px solid ${s.color}28`:"1px solid transparent"}}>
+                      <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,marginTop:3,
+                        background:done?s.color+"60":active?s.color:"#2A2010",
+                        border:active?`1px solid ${s.color}`:""}}/>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:"0.62rem",color:done?"#3A3018":active?s.color:"#6A5A38",
+                          textDecoration:done?"line-through":"none",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>
+                          {active?"▶ ":""}{s.name}
+                        </div>
+                        {active&&<div style={{fontSize:"0.55rem",color:"#4A3A20",marginTop:1,fontStyle:"italic"}}>{s.desc}</div>}
+                        {!done&&!active&&i>0&&<div style={{fontSize:"0.52rem",color:"#3A3018",fontFamily:"monospace"}}>{fmtNum(s.qiReq)} Qi</div>}
+                      </div>
+                      {done&&<span style={{fontSize:"0.6rem",color:"#3A6A38",flexShrink:0}}>✓</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ALCHEMY */}
+            {lTab==="alchemy" && (
+              <div>
+                {/* Herb inventory */}
+                <div style={{marginBottom:12}}>
+                  <div style={{fontSize:"0.55rem",letterSpacing:"0.15em",color:"#5A4A28",marginBottom:7}}>HERB INVENTORY</div>
+                  {HERBS.map(h=>(
+                    <div key={h.key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5,
+                      background:"#100E0A",borderRadius:4,padding:"6px 10px",border:"1px solid #1E1810"}}>
+                      <div>
+                        <span style={{fontSize:"0.7rem",marginRight:6}}>{h.icon}</span>
+                        <span style={{color:h.color,fontSize:"0.7rem"}}>{h.shortName}</span>
+                        <span style={{fontSize:"0.55rem",color:"#4A3A20",marginLeft:5}}>{h.rarity}</span>
+                      </div>
+                      <span style={{color:"#DDD0B0",fontFamily:"monospace",fontWeight:700,fontSize:"0.78rem"}}>×{player.herbs[h.key]||0}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Crafting */}
+                <div style={{marginBottom:12,borderTop:"1px solid #1E1810",paddingTop:12}}>
+                  <div style={{fontSize:"0.55rem",letterSpacing:"0.15em",color:"#5A4A28",marginBottom:7}}>CRAFT PILLS</div>
+                  {RECIPES.map(recipe=>{
+                    const ok = canCraft(player, recipe);
+                    return (
+                      <div key={recipe.key} style={{marginBottom:9,background:"#100E0A",borderRadius:6,padding:"9px 11px",border:`1px solid ${ok?recipe.color+"30":"#1E1810"}`}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                          <span style={{color:ok?recipe.color:"#6A5A38",fontSize:"0.72rem",fontWeight:700}}>{recipe.short}</span>
+                          <span style={{color:"#DDD0B0",fontFamily:"monospace",fontSize:"0.68rem"}}>×{player.pills[recipe.key]}</span>
+                        </div>
+                        <div style={{fontSize:"0.6rem",color:"#5A4A28",marginBottom:5,lineHeight:1.4}}>
+                          {Object.entries(recipe.ingredients).map(([k,v])=>{
+                            const herb = HERBS.find(h=>h.key===k);
+                            const have = player.herbs[k]||0;
+                            return <span key={k} style={{marginRight:8,color:have>=v?herb.color:"#6A3A28"}}>{herb.icon}{v}</span>;
+                          })}
+                          <span style={{color:"#4A3A20"}}>→ +{fmtNum(recipe.qiGain)} Qi</span>
+                        </div>
+                        <div style={{display:"flex",gap:6}}>
+                          <button onClick={()=>doCraft(recipe.key)} disabled={busy||!ok}
+                            style={{flex:1,background:ok?"#181410":"transparent",border:`1px solid ${ok?recipe.color:"#2A2010"}`,
+                              borderRadius:4,padding:"5px",cursor:ok?"pointer":"not-allowed",
+                              color:ok?recipe.color:"#3A2A14",fontSize:"0.62rem",letterSpacing:"0.06em",
+                              opacity:!ok||busy?0.4:1}}>
+                            ⚗️ CRAFT
+                          </button>
+                          <button onClick={()=>doUsePill(recipe.key)} disabled={busy||player.pills[recipe.key]===0}
+                            style={{flex:1,background:player.pills[recipe.key]>0?"#181410":"transparent",
+                              border:`1px solid ${player.pills[recipe.key]>0?recipe.color:"#2A2010"}`,
+                              borderRadius:4,padding:"5px",cursor:player.pills[recipe.key]>0?"pointer":"not-allowed",
+                              color:player.pills[recipe.key]>0?recipe.color:"#3A2A14",fontSize:"0.62rem",letterSpacing:"0.06em",
+                              opacity:player.pills[recipe.key]===0||busy?0.4:1}}>
+                            💊 USE
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Shop */}
+                <div style={{borderTop:"1px solid #1E1810",paddingTop:12}}>
+                  <div style={{fontSize:"0.55rem",letterSpacing:"0.15em",color:"#5A4A28",marginBottom:4}}>SPIRIT APOTHECARY</div>
+                  <div style={{fontSize:"0.62rem",color:"#6A5A38",marginBottom:8,fontFamily:"monospace"}}>💎 {player.stones} stones</div>
+                  {RECIPES.map(recipe=>(
+                    <div key={recipe.key} style={{display:"flex",alignItems:"center",gap:6,marginBottom:7}}>
+                      <div style={{flex:1}}>
+                        <div style={{color:recipe.color,fontSize:"0.68rem",fontWeight:700}}>{recipe.short}</div>
+                        <div style={{color:"#4A3A20",fontSize:"0.56rem"}}>{recipe.shopCost}💎 · +{fmtNum(recipe.qiGain)} Qi</div>
+                      </div>
+                      <button onClick={()=>doBuy(recipe.key)} disabled={busy||player.stones<recipe.shopCost}
+                        style={{background:"transparent",border:`1px solid ${player.stones>=recipe.shopCost?recipe.color:"#2A2010"}`,
+                          borderRadius:4,padding:"5px 12px",cursor:player.stones>=recipe.shopCost?"pointer":"not-allowed",
+                          color:player.stones>=recipe.shopCost?recipe.color:"#3A2A14",fontSize:"0.62rem",flexShrink:0,
+                          opacity:player.stones<recipe.shopCost?0.35:1}}>
+                        BUY
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* RIGHT: LOG + ACTIONS */}
+        <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+
+          {/* LOG */}
+          <div ref={logRef} style={{flex:1,overflowY:"auto",padding:"14px 18px 8px",display:"flex",flexDirection:"column"}}>
+            {logs.length===0 && (
+              <div style={{color:"#3A3018",fontStyle:"italic",textAlign:"center",marginTop:"2.5rem",fontSize:"0.83rem"}}>
+                Your legend has not yet been written...
+              </div>
+            )}
+            {logs.map(e=><LogEntry key={e.id} entry={e}/>)}
+            {busy && (
+              <div style={{display:"flex",gap:5,padding:"6px 0"}}>
+                {[0,0.3,0.6].map((d,i)=>(
+                  <div key={i} style={{width:6,height:6,background:"#D4A830",borderRadius:"50%",animation:`dotBlink 1.2s ${d}s infinite`}}/>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* COMBAT */}
+          {combat && (
+            <div style={{background:"#0D0808",borderTop:"1px solid #3A1A10",padding:"11px 15px",flexShrink:0}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:7}}>
+                <span style={{fontFamily:"'Cinzel',serif",color:"#F08860",fontSize:"0.68rem",letterSpacing:"0.1em"}}>⚔️ IN COMBAT</span>
+                <span style={{color:"#F08860",fontSize:"0.72rem",fontWeight:700}}>{combat.name}</span>
+              </div>
+              <Bar label="ENEMY HP" val={combat.hp} max={combat.maxHp} color="#D06050" fmt={n=>n}/>
+              <div style={{display:"flex",gap:8,marginTop:9}}>
+                <button onClick={doAttack} disabled={busy} style={{flex:1,background:"#160808",border:"1px solid #C04030",color:busy?"#402818":"#F08860",fontFamily:"'Cinzel',serif",fontSize:"0.7rem",letterSpacing:"0.1em",padding:"10px",borderRadius:4,cursor:busy?"not-allowed":"pointer",opacity:busy?0.4:1}}>
+                  ⚔️ ATTACK
+                </button>
+                <button onClick={doFlee} disabled={busy} style={{flex:1,background:"#121008",border:"1px solid #504820",color:busy?"#303018":"#907830",fontFamily:"'Cinzel',serif",fontSize:"0.7rem",letterSpacing:"0.1em",padding:"10px",borderRadius:4,cursor:busy?"not-allowed":"pointer",opacity:busy?0.4:1}}>
+                  🏃 FLEE
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ACTIONS */}
+          {!combat && (
+            <div style={{background:"#0C0A08",borderTop:"1px solid #1E1810",padding:"10px 12px",flexShrink:0}}>
+              <div style={{display:"flex",gap:7}}>
+                <Btn onClick={doMeditate} disabled={busy} icon="☯" label="Meditate"
+                  sub={isQiFull?"Fills Breakthrough gauge":"Gathers Qi"}
+                  color={isQiFull?"#F0D060":"#6DCFB8"}/>
+                <Btn onClick={doExplore}  disabled={busy} icon="🧭" label="Explore"
+                  sub="Herbs · Stones · Combat"
+                  color="#D4A830"/>
+                <Btn onClick={doRest}     disabled={busy} icon="💤" label="Rest"
+                  sub="Recover HP · Age +1"
+                  color="#C8A0E0"/>
+                <Btn onClick={doBreakthrough} disabled={busy||player.brkGauge<=0||!nextStg}
+                  icon="⚡" label="Breakthrough"
+                  sub={player.brkGauge>0&&nextStg?`${player.brkGauge}% · ~${brkChance}% chance`:"Build gauge first"}
+                  color={player.brkGauge>=80?"#FFD700":player.brkGauge>=40?"#F0D060":"#5A5030"}
+                  pulse={player.brkGauge>=80&&!!nextStg}/>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  return null;
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(XianxiaGame));
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
